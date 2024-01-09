@@ -1,0 +1,162 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "clientId": {
+            "defaultValue": "",
+            "type": "String"
+        },
+        "tenantId": {
+            "defaultValue": "",
+            "type": "String"
+        },
+        "subscriptions": {
+            "defaultValue": "",
+            "type": "String"
+        },
+        "adminuser": {
+            "defaultValue": "",
+            "type": "String"
+        },
+        "adminuserpassword": {
+            "defaultValue": "",
+            "type": "String"
+        },
+        "privateEndpointName": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "Enter Private-Endpoint name format PE is: <resource name>-pe"
+            }
+        },
+        "nic": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "Enter Nic name format NIC: <resource name>-pe-nic"
+            }
+        },
+        "subnetid": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "Enter subnet id to get it --> Vnetid/subnets/<subnetname> get vnet id from vnet properties"
+            }
+        },
+        "sqlServerName": {
+            "defaultValue": "",
+            "type": "String"
+        },
+        "sqldbName": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "Enter App type name for db -- like progetdb, ssdb, femdb"
+            }
+        }
+        // "transparentDatabaseEncryption": {
+        //     "defaultValue": "Enabled",
+        //     "allowedValues": [
+        //         "Enabled",
+        //         "Disabled"
+        //     ],
+        //     "type": "String",
+        //     "metadata": {
+        //         "description": "Enable or disable Transparent Data Encryption (TDE) for the database."
+        //     }
+        // }
+    },
+    "variables": {
+        "subscriptionsKey": "[concat('/subscriptions/', parameters('subscriptions'), '/providers/Microsoft.Maintenance/publicMaintenanceConfigurations/SQL_Default')]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Sql/servers",
+            "apiVersion": "2021-11-01-preview",
+            "name": "[parameters('sqlServerName')]",
+            "location": "eastus",
+            "kind": "v12.0",
+            "properties": {
+                "administratorLogin": "[parameters('adminuser')]",
+                "administratorLoginPassword": "[parameters('adminuserpassword')]",
+                "version": "12.0",
+                "minimalTlsVersion": "1.2",
+                "publicNetworkAccess": "Disabled",
+                "restrictOutboundNetworkAccess": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/connectionPolicies",
+            "apiVersion": "2021-11-01-preview",
+            "name": "[concat(parameters('sqlServerName'), '/default')]",
+            "location": "eastus",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('sqlServerName'))]"
+            ],
+            "properties": {
+                "connectionType": "Default"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases",
+            "apiVersion": "2021-11-01-preview",
+            "name": "[format('{0}/{1}', parameters('sqlServerName'), parameters('sqldbName'))]",
+            "location": "eastus",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('sqlServerName'))]"
+            ],
+            "sku": {
+                "name": "GP_S_Gen5_10",
+                "tier": "GeneralPurpose"
+            },
+            "kind": "v12.0,user",
+            "properties": {
+                "collation": "SQL_Latin1_General_CP1_CI_AS",
+                "maxSizeBytes": 274877906944,
+                "catalogCollation": "SQL_Latin1_General_CP1_CI_AS",
+                "zoneRedundant": false,
+                "readScale": "Disabled",
+                "requestedBackupStorageRedundancy": "Local",
+                "minCapacity": 2,
+                "maintenanceConfigurationId": "[variables('subscriptionsKey')]",
+                "isLedgerOn": false
+            }
+            // "resources": [
+            //     {
+            //         "type": "transparentDataEncryption",
+            //         "apiVersion": "2017-03-01-preview",
+            //         "name": "current",
+            //         "dependsOn": [
+            //             "[parameters('sqldbName')]"
+            //         ],
+            //         "properties": {
+            //             "status": "[parameters('transparentDatabaseEncryption')]"
+            //         }
+            //     }
+            // ]
+        },
+        {
+            "type": "Microsoft.Network/privateEndpoints",
+            "apiVersion": "2021-05-01",
+            "name": "[parameters('privateEndpointName')]",
+            "location": "eastus",
+            "properties": {
+                "subnet": {
+                    "id": "[parameters('subnetid')]"
+                },
+                "customNetworkInterfaceName": "[parameters('nic')]",
+                "privateLinkServiceConnections": [
+                    {
+                        "name": "[parameters('privateEndpointName')]",
+                        "properties": {
+                            "privateLinkServiceId": "[resourceId('Microsoft.Sql/servers', parameters('sqlServerName'))]",
+                            "groupIds": [
+                                "sqlServer"
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}

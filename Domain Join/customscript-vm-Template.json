@@ -1,0 +1,50 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+
+        "vmName": {
+            "type": "String"
+        },
+        "domainUsername": {
+            "type": "String"
+        },
+        "vmUser": {
+            "type": "String"
+        },
+        "vmPassword": {
+            "type": "secureString"
+        },
+        "domainName": {
+            "type": "String"
+        },
+        "domainPassword": {
+            "type": "String"
+        }
+    },
+    "variables": {},
+        "resources": [
+        {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "apiVersion": "2020-12-01",
+            "name": "[concat(parameters('vmName'),'/CustomScriptExtension')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "publisher": "Microsoft.Compute",
+                "type": "CustomScriptExtension",
+                "typeHandlerVersion": "1.8",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                    "fileUris": [
+                        "[concat('https://raw.githubusercontent.com/username/azskpolicy/master/adDomain2.ps1')]"
+                    ],
+                    "commandToExecute": ""
+                },
+                "protectedSettings": {
+                    "commandToExecute": "[concat('powershell.exe -ExecutionPolicy Unrestricted -Command .\\adDomain2.ps1 -domainPassword ', '''', parameters('domainPassword'), '''')]",
+                    "managedIdentity": {}
+                }
+            }
+        }
+    ]
+}

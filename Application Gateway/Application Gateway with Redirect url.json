@@ -1,0 +1,419 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "defaultValue": "[resourceGroup().location]",
+            "type": "String",
+            "metadata": {
+                "description": "Specifies the location for all resources that is created by this template."
+            }
+        },
+        "applicationGatewayName": {
+            "type": "String",
+            "metadata": {
+                "description": "Application gateway name"
+            }
+        },
+        "privateIpAddress": {
+            "type": "String",
+            "metadata": {
+                "description": "Enter Private IP address of Appgateway"
+            }
+        },
+        "certData": {
+            "type": "String",
+            "metadata": {
+                "description": "Enter Base-64 encoded form of the .pfx file. This is the cert terminating on the Application Gateway"
+            }
+        },
+        // "certPassword": {
+        //   "type": "SecureString",
+        //   "metadata": {
+        //     "description": "Enter .pfx cert file password"
+        //   }
+        // },
+        "backendPublicKeyData": {
+            "type": "string",
+            "metadata": {
+                "description": "Base-64 encoded form of the .cer file. This is the public key for the cert on the web servers."
+            }
+        },
+        "tier": {
+            "defaultValue": "WAF",
+            "allowedValues": [
+                "Standard",
+                "Standard_V2",
+                "WAF_V2",
+                "WAF"
+            ],
+            "type": "String",
+            "metadata": {
+                "description": "Specifies the application gateway SKU name."
+            }
+        },
+        "skuSize": {
+            "defaultValue": "WAF_Medium",
+            "allowedValues": [
+                "Standard_Small",
+                "Standard_Medium",
+                "Standard_Large",
+                "Standard_V2",
+                "WAF_Medium",
+                "WAF_Large",
+                "WAF_v2"
+            ],
+            "type": "String",
+            "metadata": {
+                "description": "Specifies the application gateway SKU size. standard values-- smmall, medium,large, Standard_v2-- no, WAF values-- medium,large WAF_v2-- no  "
+            }
+        },
+        "capacity": {
+            "defaultValue": 2,
+            "allowedValues": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10
+            ],
+            "type": "Int",
+            "metadata": {
+                "description": "Specifies the number of the application gateway instances."
+            }
+        },
+        "backendIpAddress1": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "IP Address for Backend Server 1"
+            }
+        },
+        "hostName": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "Host name of Backend Server 1"
+            }
+        },
+        "hostNameUrl": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "Host name url with http:abc.com"
+            }
+        },
+        "pathMatch1": {
+            "defaultValue": "/about.aspx",
+            "type": "String",
+            "metadata": {
+                "description": "Enter path for redirect value ex: /login, /, /main..."
+            }
+        },
+        "wafEnabled": {
+            "defaultValue": true,
+            "type": "Bool",
+            "metadata": {
+                "description": "WAF Enabled"
+            }
+        },
+        "wafMode": {
+            "defaultValue": "Detection",
+            "allowedValues": [
+                "Detection",
+                "Prevention"
+            ],
+            "type": "String",
+            "metadata": {
+                "description": "WAF Mode"
+            }
+        },
+        "wafRuleSetType": {
+            "defaultValue": "OWASP",
+            "allowedValues": [
+                "OWASP"
+            ],
+            "type": "String",
+            "metadata": {
+                "description": "WAF Rule Set Type"
+            }
+        },
+        "wafRuleSetVersion": {
+            "defaultValue": "3.0",
+            "allowedValues": [
+                "2.2.9",
+                "3.0"
+            ],
+            "type": "String",
+            "metadata": {
+                "description": "WAF Rule Set Version"
+            }
+        },
+        "Subnetid": {
+            "type": "String",
+            "metadata": {
+                "description": "Enter subnet id to get it --> Vnetid/subnets/<subnetname> get vnet id from vnet properties"
+            }
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Network/applicationGateways",
+            "apiVersion": "2020-05-01",
+            "name": "[parameters('applicationGatewayName')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [],
+            "tags": {},
+            "properties": {
+                "sku": {
+                    "name": "[parameters('skuSize')]",
+                    "tier": "[parameters('tier')]",
+                    "capacity": "[parameters('capacity')]"
+                },
+                "sslCertificates": [
+                    {
+                        "name": "appGatewaySslCert",
+                        "properties": {
+                            "data": "[parameters('certData')]"
+                            //"password": "[parameters('certPassword')]"
+                        }
+                    }
+                ],
+                "gatewayIPConfigurations": [
+                    {
+                        "name": "appGatewayIpConfig",
+                        "properties": {
+                            "subnet": {
+                                "id": "[parameters('Subnetid')]"
+                            }
+                        }
+                    }
+                ],
+                "authenticationCertificates": [
+                    {
+                        "properties": {
+                            "data": "[parameters('backendPublicKeyData')]"
+                        },
+                        "name": "appGatewayBackendCert"
+                    }
+                ],
+                "frontendIPConfigurations": [
+                    {
+                        "name": "appGwPrivateFrontendIp",
+                        "properties": {
+                            "subnet": {
+                                "id": "[parameters('Subnetid')]"
+                            },
+                            "privateIPAddress": "[parameters('privateIpAddress')]",
+                            "privateIPAllocationMethod": "Static"
+                        }
+                    }
+                ],
+                "frontendPorts": [
+                    {
+                        "name": "appGatewayFrontendPort80",
+                        "properties": {
+                            "Port": 80
+                        }
+                    },
+                    {
+                        "name": "appGatewayFrontendPort443",
+                        "properties": {
+                            "Port": 443
+                        }
+                    }
+                ],
+                "backendAddressPools": [
+                    {
+                        "name": "appGatewayBackendPool",
+                        "properties": {
+                            "BackendAddresses": [
+                                {
+                                    // "IpAddress": "[parameters('backendIpAddress1')]",
+                                    "fqdn": "[parameters('hostName')]"
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "backendHttpSettingsCollection": [
+                    {
+                        "name": "appGatewayBackendHttpSettings",
+                        "properties": {
+                            "Port": 80,
+                            "Protocol": "Http",
+                            //   "PickHostNameFromBackendAddress": true,
+                            "ProbeEnabled": true,
+                            "CookieBasedAffinity": "Disabled",
+                            "Probe": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/probes', parameters('applicationGatewayName'), 'Probe1')]"
+                            }
+                        }
+                    }
+                    // {
+                    //   "name": "appGatewayBackendHttpsSettings",
+                    //   "properties": {
+                    //     "Port": 443,
+                    //     "Protocol": "Https",
+                    //     "CookieBasedAffinity": "Disabled",
+                    //     "ProbeEnabled": true,
+                    //     "PickHostNameFromBackendAddress": true,
+                    //     "Probe": {
+                    //       "id": "[resourceId('Microsoft.Network/applicationGateways/probes', parameters('applicationGatewayName'), 'Probe1')]"
+                    //     },
+                    //     "AuthenticationCertificates": [
+                    //       {
+                    //         "Id": "[resourceId('Microsoft.Network/applicationGateways/authenticationCertificates', parameters('applicationGatewayName'), 'appGatewayBackendCert')]"
+                    //       }
+                    //     ]
+                    //   }
+                    // }
+                ],
+                "httpListeners": [
+                    {
+                        "name": "appGatewayHttpListener",
+                        "properties": {
+                            "FrontendIPConfiguration": {
+                                "Id": "[resourceId('Microsoft.Network/applicationGateways/frontendIPConfigurations', parameters('applicationGatewayName'), 'appGwPrivateFrontendIp')]"
+                            },
+                            "FrontendPort": {
+                                "Id": "[resourceId('Microsoft.Network/applicationGateways/frontendPorts', parameters('applicationGatewayName'),  'appGatewayFrontendPort80')]"
+                            },
+                            "Protocol": "Http"
+                        }
+                    },
+                    {
+                        "name": "appGatewayHttpsListener",
+                        "properties": {
+                            "FrontendIPConfiguration": {
+                                "Id": "[resourceId('Microsoft.Network/applicationGateways/frontendIPConfigurations', parameters('applicationGatewayName'),  'appGwPrivateFrontendIp')]"
+                            },
+                            "FrontendPort": {
+                                "Id": "[resourceId('Microsoft.Network/applicationGateways/frontendPorts', parameters('applicationGatewayName'), 'appGatewayFrontendPort443')]"
+                            },
+                            "Protocol": "Https",
+                            "SslCertificate": {
+                                "Id": "[resourceId('Microsoft.Network/applicationGateways/sslCertificates', parameters('applicationGatewayName'), 'appGatewaySslCert')]"
+                            }
+                        }
+                    }
+                ],
+                "redirectConfigurations": [
+                    {
+                        "Name": "redirectConfig1",
+                        "properties": {
+                            "redirectType": "Temporary",
+                            "targetListener": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/httpListeners',parameters('applicationGatewayName'), 'appGatewayHttpsListener')]"
+                            }
+                        }
+                    },
+                    {
+                        "Name": "redirectConfig2",
+                        "properties": {
+                            "redirectType": "Temporary",
+                            "targetUrl": "[parameters('hostNameUrl')]"
+                        }
+                    }
+                ],
+                "urlPathMaps": [
+                    {
+                        "name": "urlPathMap1",
+                        "properties": {
+                            "defaultRedirectConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/redirectConfigurations',parameters('applicationGatewayName'), 'redirectConfig2')]"
+                            },
+                            "pathRules": [
+                                {
+                                    "name": "pathRule1",
+                                    "properties": {
+                                        "paths": [
+                                            "[parameters('pathMatch1')]"
+                                        ],
+                                        "redirectConfiguration": {
+                                            "id": "[resourceId('Microsoft.Network/applicationGateways/redirectConfigurations',parameters('applicationGatewayName'), 'redirectConfig1')]"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "requestRoutingRules": [
+                    {
+                        "Name": "rule1",
+                        "properties": {
+                            "RuleType": "Basic",
+                            "httpListener": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/httpListeners',parameters('applicationGatewayName'), 'appGatewayHttpListener')]"
+                            },
+                            "redirectConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/redirectConfigurations',parameters('applicationGatewayName'), 'redirectConfig1')]"
+                            }
+                        }
+                    },
+                    {
+                        "Name": "rule2",
+                        "properties": {
+                            "RuleType": "Basic",
+                            "httpListener": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/httpListeners/', parameters('applicationGatewayName'), 'appGatewayHttpsListener')]"
+                            },
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/backendAddressPools/', parameters('applicationGatewayName'), 'appGatewayBackendPool')]"
+                            },
+                            "backendHttpSettings": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection/', parameters('applicationGatewayName'), 'appGatewayBackendHttpSettings')]"
+                            }
+                        }
+                    }
+                ],
+                "probes": [
+                    {
+                        "Name": "probe1",
+                        "properties": {
+                            "Protocol": "http",
+                            "Path": "/about.aspx",
+                            "Host": "[parameters('hostName')]",
+                            "Interval": 30,
+                            "Timeout": 30,
+                            "UnhealthyThreshold": 3,
+                            "MinServers": 0,
+                            "Match": {
+                              "StatusCodes": ["200-399","401"]
+                                //"[parameters('healthyStatusCodes')]"
+                            },
+                            "PickHostNameFromBackendHttpSettings": false
+                        }
+                    }
+                ],
+                "enableHttp2": true,
+                "sslPolicy": {
+                    "policyType": "Custom",
+                    "minProtocolVersion": "TLSv1_2",
+                    "cipherSuites": [
+                        "TLS_RSA_WITH_AES_256_CBC_SHA256",
+                        "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384",
+                        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+                        "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
+                        "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256",
+                        "TLS_RSA_WITH_AES_128_GCM_SHA256",
+                        "TLS_RSA_WITH_AES_128_CBC_SHA256"
+                    ]
+                },
+                "webApplicationFirewallConfiguration": {
+                    "enabled": "[parameters('wafEnabled')]",
+                    "firewallMode": "[parameters('wafMode')]",
+                    "ruleSetType": "[parameters('wafRuleSetType')]",
+                    "ruleSetVersion": "[parameters('wafRuleSetVersion')]"
+                }
+            }
+        }
+    ]
+}
